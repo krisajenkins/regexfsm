@@ -1,24 +1,14 @@
 module Main where
 
-import Data.String as String
-import Prelude
-import Data.Map as Map
-import Data.Set as Set
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, log)
 import Data.Foldable (foldl)
 import Data.Map (Map, lookup)
+import Data.Map as Map
 import Data.Maybe (Maybe, maybe)
-import Data.Set (Set, fromFoldable)
+import Data.Set (Set)
+import Data.Set as Set
 import Data.String (toCharArray)
 import Data.Tuple (Tuple(..))
-import Debug.Trace (trace)
-
-main :: forall e. Eff (console :: CONSOLE | e) Unit
-main = do
-  log "Hello sailor!"
-
--- | a*b
+import Prelude
 
 data Node a
   = Start
@@ -45,34 +35,43 @@ instance showNode :: Show a => Show (Node a) where
   show End = "End"
   show (Leaf a) = "Leaf " <> show a
 
-type Regex = Map (Node Char) (Set (Node Char))
+type Regex = Map (Node Int) (Map Char (Set (Node Int)))
 
-simpleRegex :: Regex
-simpleRegex =
+-- | a*b
+regex1 :: Regex
+regex1 =
   Map.fromFoldable
-  [ Tuple Start (fromFoldable [ Leaf 'a', Leaf 'b' ])
-  , Tuple (Leaf 'a') (fromFoldable [ Leaf 'a', Leaf 'b' ])
-  , Tuple (Leaf 'b') (fromFoldable [ End ])
+  [ Tuple Start (Map.fromFoldable [ Tuple 'a' (Set.singleton Start), Tuple 'b' (Set.singleton End) ])
+  ]
+
+-- | (ab|ac)+
+regex2 :: Regex
+regex2 =
+  Map.fromFoldable
+  [ Tuple Start (Map.fromFoldable [ Tuple 'a' (Set.fromFoldable [ Leaf 1, Leaf 2 ]) ])
+  , Tuple (Leaf 1) (Map.fromFoldable [ Tuple 'b' (Set.fromFoldable [ Start, End ]) ])
+  , Tuple (Leaf 2) (Map.fromFoldable [ Tuple 'c' (Set.fromFoldable [ Start, End ]) ])
   ]
 
 match :: Regex -> String -> Boolean
 match regex string =
   Set.member End lastHeads
   where
-    lastHeads :: Set (Node Char)
+    lastHeads :: Set (Node Int)
     lastHeads = foldl (step regex) (Set.singleton Start) (toCharArray string)
 
 
-step :: Regex -> Set (Node Char) -> Char -> Set (Node Char)
+step :: Regex -> Set (Node Int) -> Char -> Set (Node Int)
 step regex heads current =
   foldl reducer Set.empty heads
   where
-    reducer :: Set (Node Char) -> (Node Char) -> Set (Node Char)
-    reducer accum head = Set.union accum (withDefault Set.empty (singleHead regex current head))
+    reducer :: Set (Node Int) -> (Node Int) -> Set (Node Int)
+    reducer accum head = Set.union accum (singleHead regex current head)
 
 withDefault :: forall a. a -> Maybe a -> a
 withDefault x = maybe x id
 
-singleHead :: Regex -> Char -> Node Char -> Maybe (Set (Node Char))
-singleHead regex current head =
-    lookup (Leaf current) regex
+singleHead :: Regex -> Char -> Node Int -> Set (Node Int)
+singleHead regex current head = withDefault Set.empty $ do
+  links <- lookup head regex
+  lookup current links
