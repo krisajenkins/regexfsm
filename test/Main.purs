@@ -24,3 +24,4 @@ main = runTest do
       assert "Harder" $ match regex2 "abacabac"
       assertFalse "Bad" $ match regex2 "c"
       assertFalse "Bad" $ match regex2 "aacaab"
+      assertFalse "Bad" $ match regex2 "abc"
